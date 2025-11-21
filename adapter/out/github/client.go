@@ -1,0 +1,202 @@
+package github
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
+
+	"example.com/team-monitoring/domain"
+	"example.com/team-monitoring/infra/logger"
+)
+
+type GithubClient struct {
+	Token string
+	Log   logger.Logger
+}
+
+func New(token string) *GithubClient {
+	return &GithubClient{Token: token}
+}
+
+func (c *GithubClient) Get(ctx context.Context, url string, target interface{}) error {
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Authorization", "token "+c.Token)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("github API error: %s", resp.Status)
+	}
+
+	return json.NewDecoder(resp.Body).Decode(target)
+}
+
+func (c *GithubClient) FetchUserEvents(ctx context.Context, username string) ([]domain.GitHubEvent, error) {
+	url := fmt.Sprintf("https://api.github.com/users/%s/events", username)
+
+	var events []domain.GitHubEvent
+	if err := c.Get(ctx, url, &events); err != nil {
+		return nil, err
+	}
+	return events, nil
+}
+
+func (c *GithubClient) ListUserRepos(ctx context.Context, username string) ([]string, error) {
+
+	url := fmt.Sprintf("https://api.github.com/users/%s/repos", username)
+	var repos []map[string]interface{}
+
+	if err := c.Get(ctx, url, &repos); err != nil {
+		return nil, err
+	}
+
+	list := []string{}
+	for _, r := range repos {
+		list = append(list, r["name"].(string))
+	}
+	return list, nil
+}
+
+func (c *GithubClient) FetchCommitsFromRepo(
+	ctx context.Context,
+	username string,
+	repo string,
+	since string,
+	until string,
+) ([]domain.GitHubCommit, error) {
+
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/commits?author=%s", username, repo, username)
+
+	if since != "" {
+		url += "&since=" + since
+	}
+	if until != "" {
+		url += "&until=" + until
+	}
+
+	var jsonCommits []map[string]interface{}
+	if err := c.Get(ctx, url, &jsonCommits); err != nil {
+		return nil, err
+	}
+	var commits []domain.GitHubCommit
+
+	for _, cmt := range jsonCommits {
+		commitObj := cmt["commit"].(map[string]interface{})
+		authorObj := commitObj["author"].(map[string]interface{})
+
+		commits = append(commits, domain.GitHubCommit{
+			Repo:    repo,
+			Sha:     cmt["sha"].(string),
+			Message: commitObj["message"].(string),
+			Author:  authorObj["name"].(string),
+			Date:    authorObj["date"].(string),
+			Url:     cmt["html_url"].(string),
+		})
+	}
+
+	return commits, nil
+}
+
+func (c *GithubClient) GetRepoPRs(
+	ctx context.Context,
+	repo string,
+	filter string,
+) ([]domain.PullRequest, error) {
+
+	owner, repoName, err := splitRepo(repo)
+	if err != nil {
+		return nil, err
+	}
+
+	url := fmt.Sprintf(
+		"https://api.github.com/repos/%s/%s/pulls?state=%s",
+		owner, repoName, mapFilter(filter),
+	)
+
+	var prs []domain.GitHubPR
+	if err := c.Get(ctx, url, &prs); err != nil {
+		return nil, err
+	}
+
+	return mapPRList(prs, repo), nil
+}
+
+func mapPRList(in []domain.GitHubPR, repo string) []domain.PullRequest {
+	out := []domain.PullRequest{}
+
+	for _, pr := range in {
+		out = append(out, domain.PullRequest{
+			Title:     pr.Title,
+			Repo:      repo,
+			Number:    int(pr.Number),
+			State:     pr.State,
+			Url:       pr.HTMLURL,
+			CreatedAt: pr.CreatedAt,
+			Merged:    pr.MergedAt != nil,
+		})
+	}
+	return out
+}
+
+func (c *GithubClient) GetUserWidePRs(
+	ctx context.Context,
+	username string,
+	filter string,
+) ([]domain.PullRequest, error) {
+
+	query := fmt.Sprintf("q=author:%s+type:pr+state:%s", username, filter)
+	url := "https://api.github.com/search/issues?" + query
+
+	var data domain.GitHubSearchIssues
+	if err := c.Get(ctx, url, &data); err != nil {
+		return nil, err
+	}
+
+	return mapSearchPRList(data.Items), nil
+}
+
+func mapSearchPRList(items []domain.GitHubSearchItem) []domain.PullRequest {
+	out := []domain.PullRequest{}
+	for _, i := range items {
+		repo := strings.Split(i.RepositoryURL, "/repos/")[1]
+
+		out = append(out, domain.PullRequest{
+			Title:     i.Title,
+			Repo:      repo,
+			Number:    int(i.Number),
+			State:     strings.ToLower(i.State),
+			Url:       i.HTMLURL,
+			CreatedAt: i.CreatedAt,
+			Merged:    strings.Contains(i.State, "merged"),
+		})
+	}
+	return out
+}
+
+func splitRepo(repo string) (string, string, error) {
+	parts := strings.Split(repo, "/")
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("repo must be owner/repo")
+	}
+	return parts[0], parts[1], nil
+}
+
+func mapFilter(state string) string {
+	if state == "merged" {
+		return "closed" // GitHub API quirk
+	}
+	if state == "all" {
+		return "all"
+	}
+	return state
+}

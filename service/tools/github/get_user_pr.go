@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 
 	"example.com/team-monitoring/domain"
+	"example.com/team-monitoring/infra/logger"
 	"example.com/team-monitoring/service/ports/out"
 )
 
 type GetUserPRsTool struct {
 	Github out.GithubPort
+	Log    logger.Logger
 }
 
 type GetUserPRsArgs struct {
@@ -31,8 +33,8 @@ func (t *GetUserPRsTool) Execute(ctx context.Context, raw json.RawMessage) (inte
 	if err := json.Unmarshal(raw, &args); err != nil {
 		return "", err
 	}
-
-	return t.Github.GetUserPRs(ctx, args.Username, args.Repo, args.Filter)
+	t.Log.Infof("Running %s", t.Name())
+	return t.GetUserPRs(ctx, args.Username, args.Repo, args.Filter)
 }
 
 func (t *GetUserPRsTool) Definition() domain.ToolDefinition {
@@ -58,4 +60,22 @@ func (t *GetUserPRsTool) Definition() domain.ToolDefinition {
 			},
 		},
 	}
+}
+
+func (c *GetUserPRsTool) GetUserPRs(
+	ctx context.Context,
+	username string,
+	repo string,
+	filter string,
+) ([]domain.PullRequest, error) {
+
+	if filter == "" {
+		filter = "open"
+	}
+
+	if repo != "" {
+		return c.Github.GetRepoPRs(ctx, repo, filter)
+	}
+
+	return c.Github.GetUserWidePRs(ctx, username, filter)
 }

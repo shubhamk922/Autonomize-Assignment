@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"example.com/team-monitoring/domain"
+	"example.com/team-monitoring/infra/logger"
 	openai "github.com/openai/openai-go"
 	"github.com/openai/openai-go/packages/param"
 	"github.com/openai/openai-go/shared"
@@ -15,6 +16,7 @@ import (
 type OpenAIClient struct {
 	client openai.Client
 	model  string
+	Log    logger.Logger
 }
 
 func NewOpenAIClient(model string) *OpenAIClient {

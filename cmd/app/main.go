@@ -10,23 +10,38 @@ import (
 	"example.com/team-monitoring/adapter/out/github"
 	"example.com/team-monitoring/adapter/out/jira"
 	"example.com/team-monitoring/adapter/out/openai"
+	"example.com/team-monitoring/infra/logger"
 	"example.com/team-monitoring/service"
+	"example.com/team-monitoring/service/ports/out"
 	"example.com/team-monitoring/service/tools"
+	githubtool "example.com/team-monitoring/service/tools/github"
+	jiratool "example.com/team-monitoring/service/tools/jira"
 )
 
 func main() {
+
+	logger := logger.NewZapLogger()
 	jiraClient := jira.New(os.Getenv("JIRA_URL"), os.Getenv("JIRA_TOKEN"))
+	jiraClient.Log = logger
 	githubClient := github.New(os.Getenv("GITHUB_TOKEN"))
+	githubClient.Log = logger
 	aiClient := openai.NewOpenAIClient("")
-
-	activityservice := service.NewActivityService(jiraClient, githubClient, aiClient)
-
+	aiClient.Log = logger
 	registry := service.NewToolRegistry()
 
-	registry.Register(&tools.GetUserCommitsTool{Github: githubClient})
-	registry.Register(&tools.GetUserPRsTool{Github: githubClient})
-	registry.Register(&tools.GetUserContributedReposTool{Github: githubClient})
-	registry.Register(&tools.GetMemberActivityTool{Svc: activityservice})
+	registry.Register(&githubtool.GetUserCommitsTool{Github: githubClient, Log: logger})
+	registry.Register(&githubtool.GetUserPRsTool{Github: githubClient, Log: logger})
+	registry.Register(&githubtool.GetUserContributedReposTool{Github: githubClient, Log: logger})
+	registry.Register(&jiratool.GetUserIssuesTool{Jira: jiraClient, Log: logger})
+	registry.Register(&jiratool.GetIssueStatusTool{Jira: jiraClient, Log: logger})
+	registry.Register(&jiratool.GetIssueUpdatesTool{Jira: jiraClient, Log: logger})
+	registry.Register(&tools.GetMemberActivityTool{Jira: jiraClient, Github: githubClient,
+		Steps: map[string]out.AITool{
+			"get_user_issues":  &jiratool.GetUserIssuesTool{Jira: jiraClient, Log: logger},
+			"get_user_commits": &githubtool.GetUserCommitsTool{Github: githubClient, Log: logger},
+		},
+		Log: logger,
+	})
 
 	bot := service.NewBot(aiClient, registry)
 

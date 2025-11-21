@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 
 	"example.com/team-monitoring/domain"
+	"example.com/team-monitoring/infra/logger"
 	"example.com/team-monitoring/service/ports/out"
 )
 
 type GetUserCommitsTool struct {
 	Github out.GithubPort
+	Log    logger.Logger
 }
 
 func (t *GetUserCommitsTool) Name() string { return "get_user_commits" }
@@ -26,7 +28,8 @@ func (t *GetUserCommitsTool) Execute(ctx context.Context, raw json.RawMessage) (
 	if err := json.Unmarshal(raw, &args); err != nil {
 		return nil, err
 	}
-	return t.Github.GetUserCommits(ctx, args.Username, args.Repo, args.Since, args.Until)
+	t.Log.Infof("Running %s", t.Name())
+	return t.GetUserCommits(ctx, args.Username, args.Repo, args.Since, args.Until)
 }
 
 func (t *GetUserCommitsTool) Definition() domain.ToolDefinition {
@@ -58,4 +61,38 @@ func (t *GetUserCommitsTool) Definition() domain.ToolDefinition {
 			"required": []string{}, // NO REQUIRED FIELDS
 		},
 	}
+}
+
+func (c *GetUserCommitsTool) GetUserCommits(
+	ctx context.Context,
+	username string,
+	repo string,
+	since string,
+	until string,
+) ([]domain.GitHubCommit, error) {
+
+	if repo != "" {
+		// CASE: commits from specific repo
+		return c.Github.FetchCommitsFromRepo(ctx, username, repo, since, until)
+	}
+
+	// CASE: all repos → list repos first
+	repos, err := c.Github.ListUserRepos(ctx, username)
+	if err != nil {
+		return nil, err
+	}
+
+	allCommits := []domain.GitHubCommit{}
+
+	for _, r := range repos {
+		commits, err := c.Github.FetchCommitsFromRepo(ctx, username, r, since, until)
+
+		if err != nil {
+			// skip repo failures → not fatal
+			continue
+		}
+		allCommits = append(allCommits, commits...)
+	}
+
+	return allCommits, nil
 }

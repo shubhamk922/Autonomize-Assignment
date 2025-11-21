@@ -7,8 +7,10 @@ import (
 )
 
 type GithubPort interface {
-	GetUserActivity(ctx context.Context, user string) ([]domain.GitHubActivity, error)
-	GetUserCommits(ctx context.Context, username, repo, since, until string) ([]domain.GitHubCommit, error)
-	GetUserPRs(ctx context.Context, username, repo, filter string) ([]domain.PullRequest, error)
-	GetUserContributedRepos(ctx context.Context, username, since string) ([]domain.GitHubRepoContribution, error)
+	Get(ctx context.Context, url string, target interface{}) error
+	ListUserRepos(ctx context.Context, username string) ([]string, error)
+	FetchUserEvents(ctx context.Context, username string) ([]domain.GitHubEvent, error)
+	FetchCommitsFromRepo(ctx context.Context, username string, repo string, since string, until string) ([]domain.GitHubCommit, error)
+	GetRepoPRs(ctx context.Context, repo string, filter string) ([]domain.PullRequest, error)
+	GetUserWidePRs(ctx context.Context, username string, filter string) ([]domain.PullRequest, error)
 }
