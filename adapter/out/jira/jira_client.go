@@ -6,14 +6,16 @@ import (
 	"net/http"
 	"net/url"
 
+	"example.com/team-monitoring/adapter/out/user"
 	"example.com/team-monitoring/domain"
 	"example.com/team-monitoring/infra/logger"
 )
 
 type JiraClient struct {
-	BaseURL string
-	Token   string
-	Log     logger.Logger
+	BaseURL    string
+	Token      string
+	Log        logger.Logger
+	IdentityDB *user.UserIdentityDB
 }
 
 func New(baseURL, token string) *JiraClient {
@@ -22,6 +24,7 @@ func New(baseURL, token string) *JiraClient {
 
 func (c *JiraClient) GetIssues(ctx context.Context, q domain.JiraQuery) ([]domain.JiraIssue, error) {
 
+	q.Assignee = c.IdentityDB.GetJiraId(q.Assignee)
 	jql := BuildJQL(q)
 	encoded := url.QueryEscape(jql)
 

@@ -5,15 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
+	"example.com/team-monitoring/adapter/out/user"
 	"example.com/team-monitoring/domain"
 	"example.com/team-monitoring/infra/logger"
 )
 
 type GithubClient struct {
-	Token string
-	Log   logger.Logger
+	Token      string
+	Log        logger.Logger
+	IdentityDB *user.UserIdentityDB
 }
 
 func New(token string) *GithubClient {
@@ -27,7 +30,7 @@ func (c *GithubClient) Get(ctx context.Context, url string, target interface{}) 
 	}
 
 	req.Header.Set("Authorization", "token "+c.Token)
-
+	c.Log.Debug("Request", "req", req)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
@@ -38,11 +41,13 @@ func (c *GithubClient) Get(ctx context.Context, url string, target interface{}) 
 		return fmt.Errorf("github API error: %s", resp.Status)
 	}
 
-	return json.NewDecoder(resp.Body).Decode(target)
+	json.NewDecoder(resp.Body).Decode(target)
+	c.Log.Debug("Response", "res", target)
+	return nil
 }
 
 func (c *GithubClient) FetchUserEvents(ctx context.Context, username string) ([]domain.GitHubEvent, error) {
-	url := fmt.Sprintf("https://api.github.com/users/%s/events", username)
+	url := fmt.Sprintf("https://api.github.com/users/%s/events", c.IdentityDB.GetGithubId(username))
 
 	var events []domain.GitHubEvent
 	if err := c.Get(ctx, url, &events); err != nil {
@@ -53,7 +58,8 @@ func (c *GithubClient) FetchUserEvents(ctx context.Context, username string) ([]
 
 func (c *GithubClient) ListUserRepos(ctx context.Context, username string) ([]string, error) {
 
-	url := fmt.Sprintf("https://api.github.com/users/%s/repos", username)
+	url := fmt.Sprintf("https://api.github.com/users/%s/repos", c.IdentityDB.GetGithubId(username))
+
 	var repos []map[string]interface{}
 
 	if err := c.Get(ctx, url, &repos); err != nil {
@@ -75,7 +81,7 @@ func (c *GithubClient) FetchCommitsFromRepo(
 	until string,
 ) ([]domain.GitHubCommit, error) {
 
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/commits?author=%s", username, repo, username)
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/commits?author=%s", c.IdentityDB.GetGithubId(username), repo, c.IdentityDB.GetGithubId(username))
 
 	if since != "" {
 		url += "&since=" + since
@@ -154,14 +160,25 @@ func (c *GithubClient) GetUserWidePRs(
 	filter string,
 ) ([]domain.PullRequest, error) {
 
-	query := fmt.Sprintf("q=author:%s+type:pr+state:%s", username, filter)
-	url := "https://api.github.com/search/issues?" + query
+	ghUser := c.IdentityDB.GetGithubId(username)
+	if ghUser == "" {
+		return nil, fmt.Errorf("github identity not found for user: %s", username)
+	}
+
+	// build query using url.Values
+	params := url.Values{}
+	params.Set("q", fmt.Sprintf("author:%s type:pr state:%s", ghUser, filter))
+	params.Set("sort", "created")
+	params.Set("order", "desc")
+	url := "https://api.github.com/search/issues?" + params.Encode()
+
+	c.Log.Infof("GitHub PR Search URL: %s", url)
 
 	var data domain.GitHubSearchIssues
 	if err := c.Get(ctx, url, &data); err != nil {
 		return nil, err
 	}
-
+	c.Log.Infof("Response %+v", data)
 	return mapSearchPRList(data.Items), nil
 }
 

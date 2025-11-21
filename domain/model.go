@@ -28,3 +28,9 @@ type ToolDefinition struct {
 	Description string
 	Parameters  map[string]interface{}
 }
+
+type UserIdentity struct {
+	DisplayName   string // "Shubham"
+	GitHubHandle  string // "shubhamk922"
+	JiraAccountID string // "ShubhamK"
+}
