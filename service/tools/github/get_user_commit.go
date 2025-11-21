@@ -29,19 +29,22 @@ func (t *GetUserCommitsTool) Execute(ctx context.Context, raw json.RawMessage) (
 		return nil, err
 	}
 	t.Log.Infof("Running %s", t.Name())
+	if args.Username == "" {
+		args.Username = "shubham"
+	}
 	return t.GetUserCommits(ctx, args.Username, args.Repo, args.Since, args.Until)
 }
 
 func (t *GetUserCommitsTool) Definition() domain.ToolDefinition {
 	return domain.ToolDefinition{
 		Name:        "get_user_commits",
-		Description: "Retrieve commits from GitHub for a user. If repo is not provided, fetch commits across all repos. If username is not provided, assume current authenticated user.",
+		Description: "Retrieve commits from GitHub for a user. If repo is not provided, fetch commits across all repos. If username is not provided, assume current user 'shubham'.",
 		Parameters: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{
 				"username": map[string]interface{}{
 					"type":        "string",
-					"description": "GitHub username. Optional. If not provided, use default authenticated user.",
+					"description": "GitHub username. Optional. Defaults to 'shubham' if not provided.",
 				},
 				"repo": map[string]interface{}{
 					"type":        "string",
@@ -75,7 +78,6 @@ func (c *GetUserCommitsTool) GetUserCommits(
 		// CASE: commits from specific repo
 		return c.Github.FetchCommitsFromRepo(ctx, username, repo, since, until)
 	}
-
 	// CASE: all repos → list repos first
 	repos, err := c.Github.ListUserRepos(ctx, username)
 	if err != nil {

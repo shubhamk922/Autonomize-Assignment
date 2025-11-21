@@ -41,13 +41,13 @@ func (b *ChatBot) Handle(ctx context.Context, input string) (string, error) {
 	// Execute tool
 	result, err := tool.Execute(ctx, []byte(resp.ToolCall.Arguments))
 	if err != nil {
-		return "", err
+		result = err
 	}
 
 	// Let AI format final answer
 	final, err := b.AI.CompleteTool(ctx, resp, result)
 	if err != nil {
-		return "", err
+		return "Sorry ! I am unable to process your request ", nil
 	}
 
 	return final, nil

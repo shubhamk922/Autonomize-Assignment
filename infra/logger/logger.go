@@ -6,4 +6,5 @@ type Logger interface {
 	Debug(msg string, keysAndValues ...interface{})
 	Infof(msg string, keysAndValues ...interface{})
 	Errorf(msg string, keysAndValues ...interface{})
+	Debugf(msg string, keysAndValues ...interface{})
 }

@@ -15,8 +15,6 @@ func BuildJQL(q domain.JiraQuery) string {
 	}
 	if q.Assignee != "" {
 		clauses = append(clauses, fmt.Sprintf(`assignee = %s`, q.Assignee))
-	} else {
-		clauses = append(clauses, "assignee = currentUser()")
 	}
 	if q.Status != "" {
 		clauses = append(clauses, fmt.Sprintf(`status = "%s"`, q.Status))

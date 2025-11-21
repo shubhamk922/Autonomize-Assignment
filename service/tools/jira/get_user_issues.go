@@ -56,7 +56,9 @@ func (t *GetUserIssuesTool) Execute(ctx context.Context, raw json.RawMessage) (i
 	if err := json.Unmarshal(raw, &args); err != nil {
 		return nil, err
 	}
-
+	if args.Assignee == "" {
+		args.Assignee = "shubham"
+	}
 	q := domain.JiraQuery{
 		Assignee: args.Assignee,
 		Status:   args.Status,

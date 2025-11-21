@@ -17,11 +17,12 @@ import (
 	"example.com/team-monitoring/service/tools"
 	githubtool "example.com/team-monitoring/service/tools/github"
 	jiratool "example.com/team-monitoring/service/tools/jira"
+	"go.uber.org/zap/zapcore"
 )
 
 func main() {
 
-	logger := logger.NewZapLogger()
+	logger := logger.NewZapLogger(zapcore.InfoLevel, "app.log", "err.log")
 
 	userIdentityDB := user.GetInstance()
 	userIdentityDB.InitDB()

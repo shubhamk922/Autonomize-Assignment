@@ -34,6 +34,9 @@ func (t *GetUserContributedReposTool) Execute(ctx context.Context, raw json.RawM
 		return "", err
 	}
 	t.Log.Infof("Running %s", t.Name())
+	if args.Username == "" {
+		args.Username = "shubham"
+	}
 	return t.GetUserContributedRepos(ctx, args.Username, args.Since)
 }
 

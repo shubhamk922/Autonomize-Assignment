@@ -7,9 +7,11 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"example.com/team-monitoring/adapter/out/user"
 	"example.com/team-monitoring/domain"
+	"example.com/team-monitoring/infra/cache"
 	"example.com/team-monitoring/infra/logger"
 )
 
@@ -17,6 +19,7 @@ type GithubClient struct {
 	Token      string
 	Log        logger.Logger
 	IdentityDB *user.UserIdentityDB
+	Cache      cache.Cache
 }
 
 func New(token string) *GithubClient {
@@ -47,17 +50,37 @@ func (c *GithubClient) Get(ctx context.Context, url string, target interface{}) 
 }
 
 func (c *GithubClient) FetchUserEvents(ctx context.Context, username string) ([]domain.GitHubEvent, error) {
+	cacheKey := fmt.Sprintf("github_events_%s", c.IdentityDB.GetGithubId(username))
+
+	// Try cache first
+	var events []domain.GitHubEvent
+	if c.Cache != nil {
+		if err := c.Cache.Get(cacheKey, &events); err == nil {
+			return events, nil
+		}
+	}
+
 	url := fmt.Sprintf("https://api.github.com/users/%s/events", c.IdentityDB.GetGithubId(username))
 
-	var events []domain.GitHubEvent
 	if err := c.Get(ctx, url, &events); err != nil {
 		return nil, err
+	}
+	if c.Cache != nil {
+		_ = c.Cache.Set(cacheKey, events, 5*time.Minute)
 	}
 	return events, nil
 }
 
 func (c *GithubClient) ListUserRepos(ctx context.Context, username string) ([]string, error) {
+	cacheKey := fmt.Sprintf("github_repos_%s", c.IdentityDB.GetGithubId(username))
 
+	// Try cache first
+	var cached []string
+	if c.Cache != nil {
+		if err := c.Cache.Get(cacheKey, &cached); err == nil {
+			return cached, nil
+		}
+	}
 	url := fmt.Sprintf("https://api.github.com/users/%s/repos", c.IdentityDB.GetGithubId(username))
 
 	var repos []map[string]interface{}
@@ -70,6 +93,9 @@ func (c *GithubClient) ListUserRepos(ctx context.Context, username string) ([]st
 	for _, r := range repos {
 		list = append(list, r["name"].(string))
 	}
+	if c.Cache != nil {
+		_ = c.Cache.Set(cacheKey, list, 10*time.Minute) // TTL configurable
+	}
 	return list, nil
 }
 
@@ -80,6 +106,17 @@ func (c *GithubClient) FetchCommitsFromRepo(
 	since string,
 	until string,
 ) ([]domain.GitHubCommit, error) {
+
+	cacheKey := fmt.Sprintf("github_commits_%s_%s_%s_%s",
+		c.IdentityDB.GetGithubId(username), repo, since, until)
+
+	// Try fetching from cache first
+	if c.Cache != nil {
+		var cached []domain.GitHubCommit
+		if err := c.Cache.Get(cacheKey, &cached); err == nil {
+			return cached, nil
+		}
+	}
 
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/commits?author=%s", c.IdentityDB.GetGithubId(username), repo, c.IdentityDB.GetGithubId(username))
 
@@ -110,6 +147,11 @@ func (c *GithubClient) FetchCommitsFromRepo(
 		})
 	}
 
+	// Save to cache with TTL
+	if c.Cache != nil {
+		_ = c.Cache.Set(cacheKey, commits, 10*time.Minute)
+	}
+
 	return commits, nil
 }
 
@@ -123,7 +165,15 @@ func (c *GithubClient) GetRepoPRs(
 	if err != nil {
 		return nil, err
 	}
+	cacheKey := fmt.Sprintf("github_prs_%s_%s_%s", owner, repoName, filter)
 
+	// Try cache first
+	if c.Cache != nil {
+		var cached []domain.PullRequest
+		if err := c.Cache.Get(cacheKey, &cached); err == nil {
+			return cached, nil
+		}
+	}
 	url := fmt.Sprintf(
 		"https://api.github.com/repos/%s/%s/pulls?state=%s",
 		owner, repoName, mapFilter(filter),
@@ -133,8 +183,12 @@ func (c *GithubClient) GetRepoPRs(
 	if err := c.Get(ctx, url, &prs); err != nil {
 		return nil, err
 	}
+	result := mapPRList(prs, repo)
+	if c.Cache != nil {
+		_ = c.Cache.Set(cacheKey, result, 10*time.Minute)
+	}
 
-	return mapPRList(prs, repo), nil
+	return result, nil
 }
 
 func mapPRList(in []domain.GitHubPR, repo string) []domain.PullRequest {
@@ -164,7 +218,13 @@ func (c *GithubClient) GetUserWidePRs(
 	if ghUser == "" {
 		return nil, fmt.Errorf("github identity not found for user: %s", username)
 	}
-
+	cacheKey := fmt.Sprintf("github_user_wide_prs_%s_%s", ghUser, filter)
+	if c.Cache != nil {
+		var cached []domain.PullRequest
+		if err := c.Cache.Get(cacheKey, &cached); err == nil {
+			return cached, nil
+		}
+	}
 	// build query using url.Values
 	params := url.Values{}
 	params.Set("q", fmt.Sprintf("author:%s type:pr state:%s", ghUser, filter))
@@ -172,14 +232,15 @@ func (c *GithubClient) GetUserWidePRs(
 	params.Set("order", "desc")
 	url := "https://api.github.com/search/issues?" + params.Encode()
 
-	c.Log.Infof("GitHub PR Search URL: %s", url)
-
 	var data domain.GitHubSearchIssues
 	if err := c.Get(ctx, url, &data); err != nil {
 		return nil, err
 	}
-	c.Log.Infof("Response %+v", data)
-	return mapSearchPRList(data.Items), nil
+	result := mapSearchPRList(data.Items)
+	if c.Cache != nil {
+		_ = c.Cache.Set(cacheKey, result, 10*time.Minute)
+	}
+	return result, nil
 }
 
 func mapSearchPRList(items []domain.GitHubSearchItem) []domain.PullRequest {

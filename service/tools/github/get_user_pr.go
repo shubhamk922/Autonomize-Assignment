@@ -34,6 +34,9 @@ func (t *GetUserPRsTool) Execute(ctx context.Context, raw json.RawMessage) (inte
 		return "", err
 	}
 	t.Log.Infof("Running %s", t.Name())
+	if args.Username == "" {
+		args.Username = "shubham"
+	}
 	return t.GetUserPRs(ctx, args.Username, args.Repo, args.Filter)
 }
 

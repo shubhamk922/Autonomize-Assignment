@@ -29,6 +29,9 @@ func (t *GetMemberActivityTool) Execute(ctx context.Context, raw json.RawMessage
 		return nil, err
 	}
 	t.Log.Infof("Running %s", t.Name())
+	if args.Username == "" {
+		args.Username = "shubham"
+	}
 	return t.GetMemberActivity(ctx, args.Username)
 }
 
@@ -101,7 +104,7 @@ func (s *GetMemberActivityTool) GetMemberActivity(ctx context.Context, name stri
 	}
 
 	if len(collectedErrors) > 0 {
-		return activity, fmt.Errorf("partial errors: %v", collectedErrors)
+		return activity, collectedErrors[0]
 	}
 
 	return activity, nil
