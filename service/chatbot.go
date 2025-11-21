@@ -33,7 +33,6 @@ func (b *ChatBot) Handle(ctx context.Context, input string) (string, error) {
 	if resp.ToolCall == nil {
 		return resp.Content, nil
 	}
-	fmt.Println("Called %s", resp.ToolCall.Name)
 	tool, ok := b.Registry.Get(resp.ToolCall.Name)
 	if !ok {
 		return "", fmt.Errorf("unknown tool: %s", resp.ToolCall.Name)

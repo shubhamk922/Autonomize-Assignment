@@ -19,7 +19,7 @@ func NewActivityService(j out.JiraPort, g out.GithubPort, ai out.AIPort) *Activi
 
 func (s *ActivityService) GetMemberActivity(ctx context.Context, name string) (*domain.MemberActivity, error) {
 	jiraData, _ := s.Jira.GetUserIssues(domain.JiraQuery{})
-	githubData, _ := s.Github.GetUserActivity(ctx, name)
+	githubData, _ := s.Github.GetUserCommits(ctx, name, "", "", "")
 
 	activity := &domain.MemberActivity{
 		Name:   name,

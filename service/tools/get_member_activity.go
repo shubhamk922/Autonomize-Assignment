@@ -26,10 +26,10 @@ func (t *GetMemberActivityTool) Execute(ctx context.Context, raw json.RawMessage
 	return t.Svc.GetMemberActivity(ctx, args.Username)
 }
 
-func (t *GetMemberActivityTool) Defintion() domain.ToolDefinition {
+func (t *GetMemberActivityTool) Definition() domain.ToolDefinition {
 	return domain.ToolDefinition{
 		Name:        "get_member_activity",
-		Description: "Get activity summary for a user",
+		Description: "Get Git and Jira activity summary for a user",
 		Parameters: map[string]interface{}{
 			"type": "object",
 			"properties": map[string]interface{}{

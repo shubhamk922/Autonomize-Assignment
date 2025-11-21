@@ -24,6 +24,8 @@ func main() {
 	registry := service.NewToolRegistry()
 
 	registry.Register(&tools.GetUserCommitsTool{Github: githubClient})
+	registry.Register(&tools.GetUserPRsTool{Github: githubClient})
+	registry.Register(&tools.GetUserContributedReposTool{Github: githubClient})
 	registry.Register(&tools.GetMemberActivityTool{Svc: activityservice})
 
 	bot := service.NewBot(aiClient, registry)

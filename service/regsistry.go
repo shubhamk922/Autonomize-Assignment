@@ -25,7 +25,7 @@ func (r *ToolRegistry) Get(name string) (out.AITool, bool) {
 func (r *ToolRegistry) GetDefinitions() []domain.ToolDefinition {
 	var defintions []domain.ToolDefinition
 	for _, val := range r.tools {
-		defintions = append(defintions, val.Defintion())
+		defintions = append(defintions, val.Definition())
 	}
 	return defintions
 }

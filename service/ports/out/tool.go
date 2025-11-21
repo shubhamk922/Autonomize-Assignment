@@ -9,6 +9,6 @@ import (
 
 type AITool interface {
 	Name() string
-	Defintion() domain.ToolDefinition
+	Definition() domain.ToolDefinition
 	Execute(ctx context.Context, args json.RawMessage) (interface{}, error)
 }

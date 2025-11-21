@@ -17,7 +17,7 @@ type GitHubActivity struct {
 type MemberActivity struct {
 	Name   string
 	Jira   []JiraIssue
-	GitHub []GitHubActivity
+	GitHub []GitHubCommit
 }
 
 type Message struct {
@@ -54,4 +54,29 @@ type JiraQuery struct {
 	Project  string
 	Assignee string // “currentUser()” or actual name
 	Status   string
+}
+
+type GitHubCommit struct {
+	Repo    string `json:"repo"`
+	Sha     string `json:"sha"`
+	Message string `json:"message"`
+	Author  string `json:"author"`
+	Date    string `json:"date"`
+	Url     string `json:"url"`
+}
+
+type PullRequest struct {
+	Title     string `json:"title"`
+	Repo      string `json:"repo"`
+	Number    int    `json:"number"`
+	State     string `json:"state"`
+	Url       string `json:"url"`
+	CreatedAt string `json:"created_at"`
+	Merged    bool   `json:"merged"`
+}
+
+type GitHubRepoContribution struct {
+	Repo            string `json:"repo"`
+	LastCommittedAt string `json:"last_committed_at,omitempty"`
+	ActivityType    string `json:"activity_type"` // "push" or "pull_request"
 }

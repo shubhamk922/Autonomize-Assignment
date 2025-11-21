@@ -78,37 +78,6 @@ func (o *OpenAIClient) Chat(ctx context.Context, msgs []domain.Message, tools []
 		}
 	}
 
-	// Define get_user_commits tool
-	/*getUserCommitsTool := openai.ChatCompletionToolParam{
-		Type: constant.Function("function"),
-		Function: shared.FunctionDefinitionParam{
-			Name:        "get_user_commits",
-			Description: param.Opt[string]{Value: "Get recent commits pushed by a GitHub user"},
-			Parameters: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"username": map[string]interface{}{"type": "string"},
-				},
-				"required": []string{"username"},
-			},
-		},
-	}
-
-	memberActivityTool := openai.ChatCompletionToolParam{
-		Type: constant.Function("function"),
-		Function: shared.FunctionDefinitionParam{
-			Name:        "get_member_activity",
-			Description: param.Opt[string]{Value: "Get activity summary for a user"},
-			Parameters: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"username": map[string]interface{}{"type": "string"},
-				},
-				"required": []string{"username"},
-			},
-		},
-	}*/
-
 	var sdkTools []openai.ChatCompletionToolParam
 	for _, t := range tools {
 		sdkTools = append(sdkTools, openai.ChatCompletionToolParam{
