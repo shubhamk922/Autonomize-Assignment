@@ -1,13 +1,12 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"log"
-	"os"
-	"strings"
+	"net/http"
 
+	"example.com/team-monitoring/adapter/in/controllers"
 	"example.com/team-monitoring/adapter/out/github"
 	"example.com/team-monitoring/adapter/out/jira"
 	"example.com/team-monitoring/adapter/out/openai"
@@ -67,17 +66,10 @@ func main() {
 
 	bot := service.NewBot(aiClient, registry)
 
-	reader := bufio.NewReader(os.Stdin)
-	ctx := context.Background()
-	for {
-		fmt.Print("\nAsk: ")
-		q, _ := reader.ReadString('\n')
-		q = strings.TrimSpace(q)
-		resp, err := bot.Handle(ctx, q)
-		if err != nil {
-			fmt.Printf("Error %+v", err)
-			continue
-		}
-		fmt.Println("\n➡ ", resp)
-	}
+	http.HandleFunc("/chat", (&controllers.ChatController{
+		Service: bot,
+	}).Handle)
+
+	fmt.Println("🚀 Server running on :8080")
+	http.ListenAndServe(":8080", nil)
 }
