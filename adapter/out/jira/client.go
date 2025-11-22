@@ -38,6 +38,7 @@ func (c *JiraClient) GetIssues(ctx context.Context, q domain.JiraQuery) ([]domai
 	if c.Cache != nil {
 
 		if err := c.Cache.Get(cacheKey, &cached); err == nil {
+			c.Log.Infof("GET %s", cacheKey)
 			return cached, nil
 		}
 	}
@@ -79,6 +80,7 @@ func (c *JiraClient) GetIssues(ctx context.Context, q domain.JiraQuery) ([]domai
 	}
 	if c.Cache != nil {
 		_ = c.Cache.Set(cacheKey, issues, 5*time.Minute)
+		c.Log.Infof("SET %s", cacheKey)
 	}
 
 	return issues, nil
@@ -91,6 +93,7 @@ func (t *JiraClient) GetStatus(ctx context.Context, key string) (domain.JiraIssu
 	if t.Cache != nil {
 		var cached domain.JiraIssueStatus
 		if err := t.Cache.Get(cacheKey, &cached); err == nil {
+			t.Log.Infof("GET %s", cacheKey)
 			return cached, nil
 		}
 	}
@@ -124,6 +127,7 @@ func (t *JiraClient) GetStatus(ctx context.Context, key string) (domain.JiraIssu
 	}
 	if t.Cache != nil {
 		_ = t.Cache.Set(cacheKey, result, 5*time.Minute)
+		t.Log.Infof("SET %s", cacheKey)
 	}
 	return result, nil
 }
@@ -135,6 +139,7 @@ func (t *JiraClient) GetUpdates(ctx context.Context, key string, limit int) (dom
 	if t.Cache != nil {
 		var cached domain.JiraIssueUpdate
 		if err := t.Cache.Get(cacheKey, &cached); err == nil {
+			t.Log.Infof("GET %s", cacheKey)
 			return cached, nil
 		}
 	}
@@ -191,6 +196,7 @@ func (t *JiraClient) GetUpdates(ctx context.Context, key string, limit int) (dom
 
 	if t.Cache != nil {
 		_ = t.Cache.Set(cacheKey, result, 5*time.Minute)
+		t.Log.Infof("SET %s", cacheKey)
 	}
 
 	return result, nil

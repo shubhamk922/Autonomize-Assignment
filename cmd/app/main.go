@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -11,6 +12,8 @@ import (
 	"example.com/team-monitoring/adapter/out/jira"
 	"example.com/team-monitoring/adapter/out/openai"
 	"example.com/team-monitoring/adapter/out/user"
+	"example.com/team-monitoring/config"
+	"example.com/team-monitoring/infra/cache"
 	"example.com/team-monitoring/infra/logger"
 	"example.com/team-monitoring/service"
 	"example.com/team-monitoring/service/ports/out"
@@ -22,7 +25,14 @@ import (
 
 func main() {
 
+	cfg, err := config.LoadConfig("config/config.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	logger := logger.NewZapLogger(zapcore.InfoLevel, "app.log", "err.log")
+
+	redis := cache.NewRedisClient(cfg.Redis.Addr, cfg.Redis.Password, cfg.Redis.DB)
 
 	userIdentityDB := user.GetInstance()
 	userIdentityDB.InitDB()
@@ -30,10 +40,12 @@ func main() {
 	jiraClient := jira.New(os.Getenv("JIRA_URL"), os.Getenv("JIRA_TOKEN"))
 	jiraClient.Log = logger
 	jiraClient.IdentityDB = userIdentityDB
+	jiraClient.Cache = redis
 
 	githubClient := github.New(os.Getenv("GITHUB_TOKEN"))
 	githubClient.Log = logger
 	githubClient.IdentityDB = userIdentityDB
+	githubClient.Cache = redis
 
 	aiClient := openai.NewOpenAIClient("")
 	aiClient.Log = logger

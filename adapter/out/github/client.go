@@ -56,6 +56,7 @@ func (c *GithubClient) FetchUserEvents(ctx context.Context, username string) ([]
 	var events []domain.GitHubEvent
 	if c.Cache != nil {
 		if err := c.Cache.Get(cacheKey, &events); err == nil {
+			c.Log.Infof("GET %s", cacheKey)
 			return events, nil
 		}
 	}
@@ -66,6 +67,7 @@ func (c *GithubClient) FetchUserEvents(ctx context.Context, username string) ([]
 		return nil, err
 	}
 	if c.Cache != nil {
+		c.Log.Infof("SET %s", cacheKey)
 		_ = c.Cache.Set(cacheKey, events, 5*time.Minute)
 	}
 	return events, nil
@@ -78,6 +80,7 @@ func (c *GithubClient) ListUserRepos(ctx context.Context, username string) ([]st
 	var cached []string
 	if c.Cache != nil {
 		if err := c.Cache.Get(cacheKey, &cached); err == nil {
+			c.Log.Infof("GET %s", cacheKey)
 			return cached, nil
 		}
 	}
@@ -94,6 +97,7 @@ func (c *GithubClient) ListUserRepos(ctx context.Context, username string) ([]st
 		list = append(list, r["name"].(string))
 	}
 	if c.Cache != nil {
+		c.Log.Infof("SET %s", cacheKey)
 		_ = c.Cache.Set(cacheKey, list, 10*time.Minute) // TTL configurable
 	}
 	return list, nil
@@ -107,13 +111,14 @@ func (c *GithubClient) FetchCommitsFromRepo(
 	until string,
 ) ([]domain.GitHubCommit, error) {
 
-	cacheKey := fmt.Sprintf("github_commits_%s_%s_%s_%s",
-		c.IdentityDB.GetGithubId(username), repo, since, until)
+	cacheKey := fmt.Sprintf("github_commits_%s_%s",
+		c.IdentityDB.GetGithubId(username), repo)
 
 	// Try fetching from cache first
 	if c.Cache != nil {
 		var cached []domain.GitHubCommit
 		if err := c.Cache.Get(cacheKey, &cached); err == nil {
+			c.Log.Infof("GET %s", cacheKey)
 			return cached, nil
 		}
 	}
@@ -149,6 +154,7 @@ func (c *GithubClient) FetchCommitsFromRepo(
 
 	// Save to cache with TTL
 	if c.Cache != nil {
+		c.Log.Infof("SET %s", cacheKey)
 		_ = c.Cache.Set(cacheKey, commits, 10*time.Minute)
 	}
 
