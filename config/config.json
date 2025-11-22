@@ -1,7 +1,0 @@
-{
-  "redis": {
-    "addr": "redis-12014.crce182.ap-south-1-1.ec2.cloud.redislabs.com:12014",
-    "password": "7IBxAZDwPnrwF0312u6HK0GgbZFHCLA7",
-    "db": 0
-  }
-}
