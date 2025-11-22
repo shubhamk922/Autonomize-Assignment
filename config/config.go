@@ -1,33 +1,57 @@
 package config
 
 import (
-	"encoding/json"
-	"os"
+	"context"
+	"fmt"
+	"strconv"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
 )
 
-type RedisConfig struct {
-	Addr     string `json:"addr"`
-	Password string `json:"password"`
-	DB       int    `json:"db"`
+type AppConfig struct {
+	RedisAddr   string
+	RedisPass   string
+	RedisDB     int
+	JiraToken   string
+	JiraURL     string
+	GithubToken string
 }
 
-type Config struct {
-	Redis RedisConfig `json:"redis"`
-}
-
-// LoadConfig loads configuration from a JSON file
-func LoadConfig(path string) (*Config, error) {
-	file, err := os.Open(path)
+func LoadConfig(ctx context.Context) (*AppConfig, error) {
+	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	cfg := &Config{}
-	decoder := json.NewDecoder(file)
-	if err := decoder.Decode(cfg); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to load AWS SDK config: %w", err)
 	}
 
-	return cfg, nil
+	client := ssm.NewFromConfig(cfg)
+
+	get := func(name string, secure bool) (string, error) {
+		resp, err := client.GetParameter(ctx, &ssm.GetParameterInput{
+			Name:           aws.String(name),
+			WithDecryption: &secure,
+		})
+		if err != nil {
+			return "", err
+		}
+		return *resp.Parameter.Value, nil
+	}
+
+	redisAddr, _ := get("/app/redis/addr", false)
+	redisPass, _ := get("/app/redis/pass", true)
+	redisDB, _ := get("/app/redis/db", false)
+	redisD, _ := strconv.Atoi(redisDB)
+	jiraUrl, _ := get("/app/jira/url", false)
+	jiraToken, _ := get("/app/jira/token", true)
+	githubToken, _ := get("/app/github/token", true)
+
+	return &AppConfig{
+		RedisAddr:   redisAddr,
+		RedisPass:   redisPass,
+		RedisDB:     redisD,
+		JiraToken:   jiraToken,
+		JiraURL:     jiraUrl,
+		GithubToken: githubToken,
+	}, nil
 }

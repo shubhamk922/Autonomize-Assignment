@@ -25,24 +25,24 @@ import (
 
 func main() {
 
-	cfg, err := config.LoadConfig("config/config.json")
+	cfg, err := config.LoadConfig(context.Background())
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	logger := logger.NewZapLogger(zapcore.InfoLevel, "app.log", "err.log")
 
-	redis := cache.NewRedisClient(cfg.Redis.Addr, cfg.Redis.Password, cfg.Redis.DB)
+	redis := cache.NewRedisClient(cfg.RedisAddr, cfg.RedisPass, cfg.RedisDB)
 
 	userIdentityDB := user.GetInstance()
 	userIdentityDB.InitDB()
 
-	jiraClient := jira.New(os.Getenv("JIRA_URL"), os.Getenv("JIRA_TOKEN"))
+	jiraClient := jira.New(cfg.JiraURL, cfg.JiraToken)
 	jiraClient.Log = logger
 	jiraClient.IdentityDB = userIdentityDB
 	jiraClient.Cache = redis
 
-	githubClient := github.New(os.Getenv("GITHUB_TOKEN"))
+	githubClient := github.New(cfg.GithubToken)
 	githubClient.Log = logger
 	githubClient.IdentityDB = userIdentityDB
 	githubClient.Cache = redis
