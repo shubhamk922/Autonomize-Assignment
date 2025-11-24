@@ -19,6 +19,7 @@ import (
 	"example.com/team-monitoring/service/tools"
 	githubtool "example.com/team-monitoring/service/tools/github"
 	jiratool "example.com/team-monitoring/service/tools/jira"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -69,7 +70,7 @@ func main() {
 	http.HandleFunc("/chat", (&controllers.ChatController{
 		Service: bot,
 	}).Handle)
-
+	http.Handle("/metrics", promhttp.Handler())
 	fmt.Println("🚀 Server running on :8080")
 	http.ListenAndServe(":8080", nil)
 }

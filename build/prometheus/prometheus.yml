@@ -1,0 +1,14 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+
+  # Scrape your Go application
+  - job_name: "go-app"
+    static_configs:
+      - targets: ["localhost:8080"]
+
+  # Scrape Node Exporter for system-level metrics
+  - job_name: "node-exporter"
+    static_configs:
+      - targets: ["localhost:9100"]

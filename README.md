@@ -16,3 +16,7 @@ docker run command
 
 docker logs 
     docker exec -it 3557e7f777ca sh
+
+docker compose -f build/docker/docker-compose.yml up -d --build
+
+ocker compose -f build/docker/docker-compose.yml down
