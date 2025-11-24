@@ -19,4 +19,5 @@ docker logs
 
 docker compose -f build/docker/docker-compose.yml up -d --build
 
-ocker compose -f build/docker/docker-compose.yml down
+docker compose -f build/docker/docker-compose.yml down
+export PATH=$PATH:/usr/local/go/bin

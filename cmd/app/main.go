@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 
 	"example.com/team-monitoring/adapter/in/controllers"
 	"example.com/team-monitoring/adapter/out/github"
@@ -72,5 +75,22 @@ func main() {
 	}).Handle)
 	http.Handle("/metrics", promhttp.Handler())
 	fmt.Println("🚀 Server running on :8080")
+	Chat(bot)
 	http.ListenAndServe(":8080", nil)
+}
+
+func Chat(bot *service.ChatBot) {
+	reader := bufio.NewReader(os.Stdin)
+	ctx := context.Background()
+	for {
+		fmt.Print("\nAsk: ")
+		q, _ := reader.ReadString('\n')
+		q = strings.TrimSpace(q)
+		resp, err := bot.Handle(ctx, q)
+		if err != nil {
+			fmt.Printf("Error %+v", err)
+			continue
+		}
+		fmt.Println("\n➡ ", resp)
+	}
 }
